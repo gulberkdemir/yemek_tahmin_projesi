@@ -3,8 +3,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import joblib
+import numpy as np
 
-# Verileri yükleme
+
 df_flights = pd.read_csv('data/flights.csv', sep=';', encoding='latin1', header=None)
 
 df_flights.columns = [
@@ -78,22 +79,22 @@ df_purchase_sale_ratio.columns = [
     'PURCHASE_SALE_RATIO'
 ]
 
-# flights + flights_product: LEG_ISN_CORE & LEG_ISN_PAX ile
+
 merged_df = pd.merge(df_flights, df_flights_product, on=['LEG_ISN_CORE', 'LEG_ISN_PAX'], how='inner')
 
-# + flightset_load: FLIGHT_SET_ID & PRODUCT_ID ile
+
 merged_df = pd.merge(merged_df, df_flightset_load, on=['FLIGHT_SET_ID', 'PRODUCT_ID'], how='left')
 
-# + purchase_sale_ratio: PRODUCT_ID ile
+
 merged_df = pd.merge(merged_df, df_purchase_sale_ratio, on='PRODUCT_ID', how='left')
 
-# + cabin_crew: LEG_ISN_CORE & LEG_ISN_PAX ile
+
 merged_df = pd.merge(merged_df, df_cabin_crew, on=['LEG_ISN_CORE', 'LEG_ISN_PAX'], how='left')
 
-# + cabin_crew_performance: COMPANY_ID ile
+
 merged_df = pd.merge(merged_df, df_cabin_crew_perf, on='COMPANY_ID', how='left')
 
-# + stock_out: LEG_ISN_CORE ile flight_isn eşleştir (eğer veri uyuşuyorsa)
+
 df_stock_out['flight_isn'] = df_stock_out['flight_isn'].astype(int)
 merged_df = pd.merge(merged_df, df_stock_out, left_on='LEG_ISN_CORE', right_on='flight_isn', how='left')
 
@@ -101,21 +102,63 @@ print(f"✅ Birleşmiş veri satır sayısı: {len(merged_df)}")
 print("🧹 Eksik veri var mı:", merged_df.isnull().any().sum(), "adet sütunda eksik veri var")
 
 
-# ⬇️ BU SATIRIN ALTINA EKLE:
-# Sayısal sütunları median (orta değer) ile doldur
 numeric_cols = merged_df.select_dtypes(include='number').columns
 merged_df[numeric_cols] = merged_df[numeric_cols].fillna(merged_df[numeric_cols].median())
 
-# Kategorik sütunları 'Unknown' ile doldur
 categorical_cols = merged_df.select_dtypes(include='object').columns
 merged_df[categorical_cols] = merged_df[categorical_cols].fillna('Unknown')
 
 print(f"✅ Birleşmiş veri satır sayısı: {len(merged_df)}")
 print("🧹 Eksik veri var mı:", merged_df.isnull().any().sum(), "adet sütunda eksik veri var")
 
-# Önceden vardıysa kaldır:
-# merged_df.dropna(inplace=True)
 
 
-# Eksik verileri at
+
+
 merged_df.dropna(inplace=True)
+
+
+y = merged_df['LOAD_COUNT']
+
+
+feature_columns = [
+    'FLIGHT_TIME_HOURS',
+    'CAPACITY',
+    'FF_UYE_SAYISI',
+    'GROUP_SALES_AD_PAX_COUNT',
+    'GROUP_SALES_CH_PAX_COUNT',
+    'TURKISH_M_AD_PAX_CNT',
+    'TURKISH_F_AD_PAX_CNT',
+    'BUNDLE_CATERING_CNT',
+    'PREORDER_CATERING_CNT',
+    'SALE_COUNT',
+    'DISCOUNT_SALE_COUNT',
+    'CREW_DISCOUNT_SALE_COUNT',
+    'TOT_SALE_COUNT',
+    'PURCHASE_SALE_RATIO',
+    'POINTS',
+    'amount'  # stock_out tablosundan
+]
+
+
+X = merged_df[feature_columns]
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+model = RandomForestRegressor(n_estimators=50, random_state=42, n_jobs=-1)
+model.fit(X_train, y_train)
+
+
+y_pred = model.predict(X_test)
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+r2 = r2_score(y_test, y_pred)
+print(f"📉 RMSE: {rmse:.2f}")
+print(f"📈 R^2: {r2:.4f}")
+
+
+joblib.dump(model, 'yemek_yukleme_model.pkl')
+joblib.dump(merged_df, 'merged_df.pkl')
+
+print("✅ Model başarıyla kaydedildi.")
