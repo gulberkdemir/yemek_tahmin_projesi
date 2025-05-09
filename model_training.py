@@ -78,3 +78,44 @@ df_purchase_sale_ratio.columns = [
     'PURCHASE_SALE_RATIO'
 ]
 
+# flights + flights_product: LEG_ISN_CORE & LEG_ISN_PAX ile
+merged_df = pd.merge(df_flights, df_flights_product, on=['LEG_ISN_CORE', 'LEG_ISN_PAX'], how='inner')
+
+# + flightset_load: FLIGHT_SET_ID & PRODUCT_ID ile
+merged_df = pd.merge(merged_df, df_flightset_load, on=['FLIGHT_SET_ID', 'PRODUCT_ID'], how='left')
+
+# + purchase_sale_ratio: PRODUCT_ID ile
+merged_df = pd.merge(merged_df, df_purchase_sale_ratio, on='PRODUCT_ID', how='left')
+
+# + cabin_crew: LEG_ISN_CORE & LEG_ISN_PAX ile
+merged_df = pd.merge(merged_df, df_cabin_crew, on=['LEG_ISN_CORE', 'LEG_ISN_PAX'], how='left')
+
+# + cabin_crew_performance: COMPANY_ID ile
+merged_df = pd.merge(merged_df, df_cabin_crew_perf, on='COMPANY_ID', how='left')
+
+# + stock_out: LEG_ISN_CORE ile flight_isn eşleştir (eğer veri uyuşuyorsa)
+df_stock_out['flight_isn'] = df_stock_out['flight_isn'].astype(int)
+merged_df = pd.merge(merged_df, df_stock_out, left_on='LEG_ISN_CORE', right_on='flight_isn', how='left')
+
+print(f"✅ Birleşmiş veri satır sayısı: {len(merged_df)}")
+print("🧹 Eksik veri var mı:", merged_df.isnull().any().sum(), "adet sütunda eksik veri var")
+
+
+# ⬇️ BU SATIRIN ALTINA EKLE:
+# Sayısal sütunları median (orta değer) ile doldur
+numeric_cols = merged_df.select_dtypes(include='number').columns
+merged_df[numeric_cols] = merged_df[numeric_cols].fillna(merged_df[numeric_cols].median())
+
+# Kategorik sütunları 'Unknown' ile doldur
+categorical_cols = merged_df.select_dtypes(include='object').columns
+merged_df[categorical_cols] = merged_df[categorical_cols].fillna('Unknown')
+
+print(f"✅ Birleşmiş veri satır sayısı: {len(merged_df)}")
+print("🧹 Eksik veri var mı:", merged_df.isnull().any().sum(), "adet sütunda eksik veri var")
+
+# Önceden vardıysa kaldır:
+# merged_df.dropna(inplace=True)
+
+
+# Eksik verileri at
+merged_df.dropna(inplace=True)
