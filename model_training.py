@@ -5,64 +5,76 @@ from sklearn.metrics import mean_squared_error, r2_score
 import joblib
 
 # Verileri yükleme
-df_flights = pd.read_csv('data/flights.csv', sep=';', encoding='latin1')
-df_flights_product = pd.read_csv('data/flights_product.csv', sep=';')
+df_flights = pd.read_csv('data/flights.csv', sep=';', encoding='latin1', header=None)
 
-# flights.csv'e anlamlı sütun isimleri verelim
 df_flights.columns = [
-    'Scheduled_Departure_Local', 'Scheduled_Arrival_Local', 'Flight_No', 'Aircraft_Type',
-    'Flight_Time_Hours', 'Block_Time_Hours', 'Leg_Isn_Core', 'Leg_Isn_Pax', 'Flight_Set_ID',
-    'Reporting_Group_Name', 'Flight_Way', 'Dep_Port', 'Dep_Country', 'Arr_Port', 'Arr_Country',
-    'Delay_Minutes', 'Capacity', 'FF_Uye_Sayisi', 'Group_Adult_Pax', 'Group_Child_Pax', 'Group_Infant_Pax',
-    'Turkish_M_Adult', 'NonTurkish_M_Adult', 'Turkish_F_Adult', 'NonTurkish_F_Adult',
-    'Turkish_Child', 'NonTurkish_Child', 'Turkish_Infant', 'NonTurkish_Infant',
-    'Bundle_Catering', 'Preorder_Catering'
+    'STD', 'STD_LOCAL', 'FLT_NO', 'AC_TYPE',
+    'FLIGHT_TIME_HOURS', 'BLOCK_TIME_HOURS', 'LEG_ISN_CORE', 'LEG_ISN_PAX', 'FLIGHT_SET_ID',
+    'REPORTING_GROUP_NAME', 'FLIGHT_WAY', 'DEP_PORT', 'DEP_COUNTRY', 'ARR_PORT', 'ARR_COUNTRY',
+    'DELAY_MIN', 'CAPACITY', 'FF_UYE_SAYISI',
+    'GROUP_SALES_AD_PAX_COUNT', 'GROUP_SALES_CH_PAX_COUNT', 'GROUP_SALES_INF_PAX_COUNT',
+    'TURKISH_M_AD_PAX_CNT', 'NON_TURKISH_M_AD_PAX_CNT',
+    'TURKISH_F_AD_PAX_CNT', 'NON_TURKISH_F_AD_PAX_CNT',
+    'TURKISH_CH_PAX_CNT', 'NON_TURKISH_CH_PAX_CNT',
+    'TURKISH_INF_PAX_CNT', 'NON_TURKISH_INF_PAX_CNT',
+    'BUNDLE_CATERING_CNT', 'PREORDER_CATERING_CNT'
 ]
 
-# flights_product.csv'de tahmin edilecek sütunu yeniden adlandır
-df_flights_product = df_flights_product.rename(columns={
-    df_flights_product.columns[-1]: 'ProductCount'
-})
+df_flights_product = pd.read_csv('data/flights_product.csv', sep=';', header=None)
 
-# Dönüştür (en önemli adım)
-df_flights['Leg_Isn_Core'] = df_flights['Leg_Isn_Core'].astype(int)
-df_flights_product[df_flights_product.columns[0]] = df_flights_product[df_flights_product.columns[0]].astype(int)
+df_flights_product.columns = [
+    'LEG_ISN_CORE',
+    'LEG_ISN_PAX',
+    'PRODUCT_ID',
+    'SALE_COUNT',
+    'DISCOUNT_SALE_COUNT',
+    'CREW_DISCOUNT_SALE_COUNT',
+    'TOT_SALE_COUNT'
+]
 
-# Doğru eşleşme ile birleştir
-merged_df = pd.merge(
-    df_flights,
-    df_flights_product,
-    left_on='Leg_Isn_Core',
-    right_on=df_flights_product.columns[0]
-)
+df_flightset_load = pd.read_csv('data/flightset_load.csv', sep=';', header=None)
 
-print("✅ Satır sayısı (merged_df):", len(merged_df))
+df_flightset_load.columns = [
+    'FLIGHT_SET_ID',
+    'PRODUCT_ID',
+    'LOAD_COUNT'
+]
 
-# Eksik verileri temizle
-merged_df.dropna(inplace=True)
+df_cabin_crew = pd.read_csv('data/cabin_crew.csv', sep=';', header=None)
 
-# Özellikleri seçme
-X = merged_df[[
-    'Flight_Time_Hours', 'Capacity', 'FF_Uye_Sayisi',
-    'Group_Adult_Pax', 'Group_Child_Pax', 'Preorder_Catering'
-]]
+df_cabin_crew.columns = [
+    'LEG_ISN_CORE',
+    'LEG_ISN_PAX',
+    'COMPANY_ID'
+]
 
-y = merged_df['ProductCount']
+df_cabin_crew_perf = pd.read_csv('data/cabin_crew_performance.csv', sep=';', header=None)
 
-# Veriyi eğitim ve test olarak ayır
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+df_cabin_crew_perf.columns = [
+    'COMPANY_ID',
+    'POINTS'
+]
 
-# Modeli kur ve eğit
-rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-rf_model.fit(X_train, y_train)
+df_stock_out = pd.read_csv('data/stock_out.csv', sep=';', header=None)
 
-# Tahmin ve değerlendirme
-y_pred = rf_model.predict(X_test)
-rmse = mean_squared_error(y_test, y_pred, squared=False)
-r2 = r2_score(y_test, y_pred)
+df_stock_out.columns = [
+    'ac_type',
+    'ac_reg_code',
+    'flight_isn',
+    'sch_dep_dt',
+    'departure_port',
+    'arrival_port',
+    'flight_way',
+    'flight_no',
+    'product_id',
+    'amount'
+]
 
-print(f'Model RMSE: {rmse}')
-print(f'Model R^2 Skoru: {r2}')
 
-# Modeli kaydet
-joblib.dump(rf_model, 'yemek_tahmin_modeli.pkl')
+df_purchase_sale_ratio = pd.read_csv('data/purchase_sale_ratio.csv', sep=';', header=None)
+
+df_purchase_sale_ratio.columns = [
+    'PRODUCT_ID',
+    'PURCHASE_SALE_RATIO'
+]
+
